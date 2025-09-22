@@ -9,55 +9,57 @@ import statsmodels.api as sm
 st.title("Dubai AI Shopping Assistant Survey Dashboard")
 st.markdown("_Upload your latest Google Forms Excel/CSV to update the dashboard_")
 
-uploaded_file = st.file_uploader("Upload your survey data file here (.csv or .xlsx)", type=["csv", "xlsx"])
+# File upload
+uploaded_file = st.file_uploader(
+    "Upload your survey data file here (.csv or .xlsx)", type=["csv", "xlsx"]
+)
 
 if uploaded_file:
     if uploaded_file.name.endswith('.csv'):
         df = pd.read_csv(uploaded_file)
     else:
-        df = pd.read_excel(uploaded_file)
+        # Force openpyxl engine to avoid ImportError
+        df = pd.read_excel(uploaded_file, engine="openpyxl")
     st.success(f"Loaded {len(df)} responses! Ready for analysis.")
 else:
     st.info("Please upload your exported Google Forms file to begin.")
     st.stop()
 
-# 2. Data Cleaning (example: rename columns if needed)
-# st.write(df.head())
-# Uncomment and adjust to your column names if necessary
-
-# 3. Sidebar Filters
+# Sidebar filters
 with st.sidebar:
     st.header("Filter Responses")
-    age_filter = st.multiselect("Age", options=df['How old are you?'].unique())
-    nationality_filter = st.multiselect("Nationality", options=df['What best describes you?'].unique())
-    shopping_style_filter = st.multiselect("Shopping Style", options=df['How do you usually shop in Dubai?'].unique())
+    age_filter = st.multiselect("Age", options=df['How old are you?'].unique() if 'How old are you?' in df.columns else [])
+    nationality_filter = st.multiselect("Nationality", options=df['What best describes you?'].unique() if 'What best describes you?' in df.columns else [])
+    shopping_style_filter = st.multiselect("Shopping Style", options=df['How do you usually shop in Dubai?'].unique() if 'How do you usually shop in Dubai?' in df.columns else [])
 
     filtered_df = df.copy()
-    if age_filter:
+    if age_filter and 'How old are you?' in df.columns:
         filtered_df = filtered_df[filtered_df['How old are you?'].isin(age_filter)]
-    if nationality_filter:
+    if nationality_filter and 'What best describes you?' in df.columns:
         filtered_df = filtered_df[filtered_df['What best describes you?'].isin(nationality_filter)]
-    if shopping_style_filter:
+    if shopping_style_filter and 'How do you usually shop in Dubai?' in df.columns:
         filtered_df = filtered_df[filtered_df['How do you usually shop in Dubai?'].isin(shopping_style_filter)]
 
+# Quick metrics
 st.subheader("Quick Demographics")
 col1, col2, col3 = st.columns(3)
 col1.metric("Total Responses", len(filtered_df))
-col2.metric("Avg Digital Comfort", round(filtered_df['How comfortable are you with using new digital technology?'].mean(),2))
-col3.metric("Online Shoppers (%)", round((filtered_df['How do you usually shop in Dubai?'].value_counts(normalize=True).get('Online (web/app)',0))*100,1))
+if 'How comfortable are you with using new digital technology?' in filtered_df.columns:
+    col2.metric("Avg Digital Comfort", round(filtered_df['How comfortable are you with using new digital technology?'].mean(), 2))
+if 'How do you usually shop in Dubai?' in filtered_df.columns:
+    col3.metric("Online Shoppers (%)", round((filtered_df['How do you usually shop in Dubai?'].value_counts(normalize=True).get('Online (web/app)', 0)) * 100, 1))
 
 st.markdown("---")
 
-# 4. Visualizations
+# Respondent Profile
+if 'How old are you?' in filtered_df.columns and 'What best describes you?' in filtered_df.columns:
+    st.subheader("Respondent Profile")
+    fig, ax = plt.subplots(1, 2, figsize=(12, 4))
+    filtered_df['How old are you?'].value_counts().sort_index().plot(kind='bar', ax=ax[0], color='royalblue', title="Age")
+    filtered_df['What best describes you?'].value_counts().plot(kind='pie', autopct='%1.0f%%', ax=ax[1], title="Nationality")
+    st.pyplot(fig)
 
-# a. Age/Nationality Distribution
-st.subheader("Respondent Profile")
-fig, ax = plt.subplots(1,2, figsize=(12,4))
-filtered_df['How old are you?'].value_counts().sort_index().plot(kind='bar', ax=ax[0], color='royalblue', title="Age")
-filtered_df['What best describes you?'].value_counts().plot(kind='pie', autopct='%1.0f%%', ax=ax[1], title="Nationality")
-st.pyplot(fig)
-
-# b. Likert Averages for Key Constructs
+# Likert Analysis
 likert_map = {
     "Strongly Disagree": 1,
     "Disagree": 2,
@@ -82,37 +84,49 @@ likert_cols = [
     'Sometimes, AI assistants “get me” better than human staff.'
 ]
 
-st.subheader("Key Drivers: Means (1=Strongly Disagree, 5=Strongly Agree)")
-means = filtered_df[likert_cols].replace(likert_map).mean()
-st.bar_chart(means)
+available_cols = [col for col in likert_cols if col in filtered_df.columns]
 
-# c. Correlation Matrix
-st.subheader("Correlation Heatmap of Attitudes")
-likert_num = filtered_df[likert_cols].replace(likert_map)
-corr = likert_num.corr()
-fig, ax = plt.subplots(figsize=(10,7))
-sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
-st.pyplot(fig)
+if available_cols:
+    st.subheader("Key Drivers: Means (1=Strongly Disagree, 5=Strongly Agree)")
+    means = filtered_df[available_cols].replace(likert_map).mean()
+    st.bar_chart(means)
+else:
+    st.warning("No Likert-scale survey questions found in your data file.")
 
-# d. Regression: Which factors predict likelihood to recommend?
+# Correlation Heatmap
+if available_cols:
+    st.subheader("Correlation Heatmap of Attitudes")
+    likert_num = filtered_df[available_cols].replace(likert_map)
+    corr = likert_num.corr()
+    fig, ax = plt.subplots(figsize=(10, 7))
+    sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
+    st.pyplot(fig)
+
+# Regression
 st.subheader("Regression: What drives willingness to recommend AI shopping assistants?")
-# Example: Predict "Would you recommend using AI-powered shopping assistants to others?" (encode Yes=1, No/Maybe=0)
-if 'Would you recommend using AI-powered shopping assistants to others?' in filtered_df.columns:
-    y = filtered_df['Would you recommend using AI-powered shopping assistants to others?'].map({'Yes':1, 'No':0, 'Maybe':0.5})
-    X = likert_num
+if 'Would you recommend using AI-powered shopping assistants to others?' in filtered_df.columns and available_cols:
+    y = filtered_df['Would you recommend using AI-powered shopping assistants to others?'].map({'Yes': 1, 'No': 0, 'Maybe': 0.5})
+    X = filtered_df[available_cols].replace(likert_map)
     X = sm.add_constant(X)
     model = sm.OLS(y, X, missing='drop').fit()
     st.write(model.summary())
+else:
+    st.info("Recommendation column or Likert predictors not found in uploaded file.")
 
-# e. Word Cloud: Open-ended feedback
+# Word Cloud
 st.subheader("Open-Ended Feedback (Word Cloud)")
 if 'Any ideas or suggestions for how Dubai retailers can make AI shopping assistants better for you?' in filtered_df.columns:
     text = ' '.join(filtered_df['Any ideas or suggestions for how Dubai retailers can make AI shopping assistants better for you?'].dropna())
-    wc = WordCloud(width=800, height=400, background_color='white').generate(text)
-    plt.figure(figsize=(10,5))
-    plt.imshow(wc, interpolation='bilinear')
-    plt.axis('off')
-    st.pyplot(plt)
+    if text.strip():
+        wc = WordCloud(width=800, height=400, background_color='white').generate(text)
+        plt.figure(figsize=(10, 5))
+        plt.imshow(wc, interpolation='bilinear')
+        plt.axis('off')
+        st.pyplot(plt)
+    else:
+        st.info("No open-ended feedback available.")
+else:
+    st.info("Open-ended feedback column not found in uploaded file.")
 
 st.markdown("---")
 st.caption("Dashboard by Sanchit Singh Thapa | MBA Research | SP Jain")
