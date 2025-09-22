@@ -105,35 +105,45 @@ if available_cols:
 # Regression Analysis
 st.subheader("Regression: What drives willingness to recommend AI shopping assistants?")
 
-# Dynamically detect recommendation column
 rec_cols = [c for c in filtered_df.columns if "recommend" in c.lower()]
-available_cols = [col for col in likert_cols if col in filtered_df.columns]
 
 if rec_cols and available_cols:
-    rec_col = rec_cols[0]  # pick first matching column
+    rec_col = rec_cols[0]
     st.write(f"Using column: **{rec_col}**")
 
-    # Encode target (Yes=1, No=0, Maybe=0.5, else NaN)
+    # Encode target
     y = filtered_df[rec_col].map({'Yes': 1, 'No': 0, 'Maybe': 0.5})
 
     # Prepare predictors
     X = filtered_df[available_cols].replace(likert_map)
-    X = sm.add_constant(X)
 
-    # Run regression
-    model = sm.OLS(y, X, missing='drop').fit()
+    # Drop rows with missing values
+    data = pd.concat([y, X], axis=1).dropna()
 
-    # Show summary
-    st.markdown("**Statistical Summary**")
-    st.text(model.summary())
+    if data.empty or data[available_cols].shape[1] == 0:
+        st.warning("Not enough clean data for regression after filtering.")
+    else:
+        y_clean = data[rec_col].astype(float)
+        X_clean = sm.add_constant(data[available_cols].astype(float))
 
-    # Show coefficients visually
-    coef = model.params.drop("const").sort_values()
-    st.subheader("Top Drivers of Recommendation")
-    st.bar_chart(coef)
+        # Debug preview
+        st.markdown("**Preview of regression dataset (first 5 rows):**")
+        st.dataframe(data.head())
 
+        try:
+            model = sm.OLS(y_clean, X_clean).fit()
+
+            st.markdown("**Statistical Summary**")
+            st.text(model.summary())
+
+            coef = model.params.drop("const").sort_values()
+            st.subheader("Top Drivers of Recommendation")
+            st.bar_chart(coef)
+
+        except Exception as e:
+            st.error(f"Regression failed: {e}")
 else:
-    st.warning("Could not find a recommendation column or Likert predictors in your uploaded file. Please check column names.")
+    st.warning("Could not find a recommendation column or Likert predictors in your uploaded file.")
 
 # Word Cloud
 st.subheader("Open-Ended Feedback (Word Cloud)")
