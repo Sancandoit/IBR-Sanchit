@@ -1,0 +1,40 @@
+{
+  "segments": [
+    {
+      "name": "Digitally Native Loyalists",
+      "share": 0.22,
+      "means": {
+        "Usefulness": 4.6,
+        "EaseOfUse": 5.0,
+        "Trust": 4.3,
+        "CulturalFit": 4.5,
+        "EmotionalConnection": 4.4,
+        "TechComfort": 4.7
+      }
+    },
+    {
+      "name": "Pragmatic Adopters",
+      "share": 0.46,
+      "means": {
+        "Usefulness": 4.0,
+        "EaseOfUse": 4.1,
+        "Trust": 3.4,
+        "CulturalFit": 3.9,
+        "EmotionalConnection": 3.9,
+        "TechComfort": 4.4
+      }
+    },
+    {
+      "name": "Cautious Minimalists",
+      "share": 0.32,
+      "means": {
+        "Usefulness": 3.0,
+        "EaseOfUse": 3.3,
+        "Trust": 2.6,
+        "CulturalFit": 3.0,
+        "EmotionalConnection": 2.5,
+        "TechComfort": 4.0
+      }
+    }
+  ]
+}
