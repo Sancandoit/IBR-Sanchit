@@ -1,164 +1,56 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from wordcloud import WordCloud
-import seaborn as sns
-import statsmodels.api as sm
+from pathlib import Path
+from utils import _read_any, set_data_in_session, get_data_from_session
 
-st.title("Dubai AI Shopping Assistant Survey Dashboard")
-st.markdown("_Upload your latest Google Forms Excel/CSV to update the dashboard_")
+st.set_page_config(page_title="Dubai AI Shopping Assistant | IBR", page_icon="🛍️", layout="wide")
 
-# File upload
-uploaded_file = st.file_uploader(
-    "Upload your survey data file here (.csv or .xlsx)", type=["csv", "xlsx"]
-)
+st.title("Dubai Retail, Next")
+st.subheader("AI-Personalized Shopping Assistants and Consumer Engagement")
 
-if uploaded_file:
-    if uploaded_file.name.endswith('.csv'):
-        df = pd.read_csv(uploaded_file)
-    else:
-        # Force openpyxl engine to avoid ImportError
-        df = pd.read_excel(uploaded_file, engine="openpyxl")
-    st.success(f"Loaded {len(df)} responses! Ready for analysis.")
+st.caption("Upload Excel/CSV or use the demo sample. Data is not stored on the server; models can be recomputed in-session for rigor.")
+
+# --- Upload / Demo ---
+c1, c2 = st.columns([2,1])
+with c1:
+    file = st.file_uploader("Upload survey Excel/CSV (emails removed)", type=["csv","xlsx"])
+with c2:
+    if st.button("Use demo sample"):
+        # Tiny placeholder; replace with your 10-row anonymized sample when ready
+        demo = pd.DataFrame({
+            "How old are you?": ["18–24","25–34","45–54"],
+            "What best describes you?": ["Asian (Indian)","Asian (Indian)","Other"],
+            "How do you usually shop in Dubai?": ["Both (about equally)","In malls (physical)","Online (web/app)"],
+            "How comfortable are you with using new digital technology?": [4,5,3]
+        })
+        set_data_in_session(demo)
+
+if file:
+    df = _read_any(file)
+    set_data_in_session(df)
+    st.success(f"Loaded {len(df)} rows.")
+
+df_sess = get_data_from_session()
+st.divider()
+
+# --- Navigation ---
+if df_sess is not None and len(df_sess) > 0:
+    kpi1, kpi2, kpi3 = st.columns(3)
+    kpi1.metric("Rows loaded", len(df_sess))
+    kpi2.metric("Data source", "Uploaded file")
+    kpi3.metric("Storage", "In-session only")
+
+    st.markdown("### Navigate")
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    col1.page_link("pages/01_Simulator.py", label="Decision Simulator", icon="🎛️")
+    col2.page_link("pages/02_Segments.py", label="Segments Cockpit", icon="👥")
+    col3.page_link("pages/03_Methods.py", label="Methods & Reliability", icon="📐")
+    col4.page_link("pages/04_UX_Playbook.py", label="UX → Metrics", icon="🎯")
+    col5.page_link("pages/05_Open_Materials.py", label="Open Materials", icon="🗂️")
+    col6.page_link("pages/06_Classic_Dashboard.py", label="Classic Dashboard", icon="📊")
 else:
-    st.info("Please upload your exported Google Forms file to begin.")
+    st.info("Load a file (or choose the demo) to continue.")
     st.stop()
 
-# Sidebar filters
-with st.sidebar:
-    st.header("Filter Responses")
-    age_filter = st.multiselect("Age", options=df['How old are you?'].unique() if 'How old are you?' in df.columns else [])
-    nationality_filter = st.multiselect("Nationality", options=df['What best describes you?'].unique() if 'What best describes you?' in df.columns else [])
-    shopping_style_filter = st.multiselect("Shopping Style", options=df['How do you usually shop in Dubai?'].unique() if 'How do you usually shop in Dubai?' in df.columns else [])
-
-    filtered_df = df.copy()
-    if age_filter and 'How old are you?' in df.columns:
-        filtered_df = filtered_df[filtered_df['How old are you?'].isin(age_filter)]
-    if nationality_filter and 'What best describes you?' in df.columns:
-        filtered_df = filtered_df[filtered_df['What best describes you?'].isin(nationality_filter)]
-    if shopping_style_filter and 'How do you usually shop in Dubai?' in df.columns:
-        filtered_df = filtered_df[filtered_df['How do you usually shop in Dubai?'].isin(shopping_style_filter)]
-
-# Quick metrics
-st.subheader("Quick Demographics")
-col1, col2, col3 = st.columns(3)
-col1.metric("Total Responses", len(filtered_df))
-if 'How comfortable are you with using new digital technology?' in filtered_df.columns:
-    col2.metric("Avg Digital Comfort", round(filtered_df['How comfortable are you with using new digital technology?'].mean(), 2))
-if 'How do you usually shop in Dubai?' in filtered_df.columns:
-    col3.metric("Online Shoppers (%)", round((filtered_df['How do you usually shop in Dubai?'].value_counts(normalize=True).get('Online (web/app)', 0)) * 100, 1))
-
-st.markdown("---")
-
-# Respondent Profile
-if 'How old are you?' in filtered_df.columns and 'What best describes you?' in filtered_df.columns:
-    st.subheader("Respondent Profile")
-    fig, ax = plt.subplots(1, 2, figsize=(12, 4))
-    filtered_df['How old are you?'].value_counts().sort_index().plot(kind='bar', ax=ax[0], color='royalblue', title="Age")
-    filtered_df['What best describes you?'].value_counts().plot(kind='pie', autopct='%1.0f%%', ax=ax[1], title="Nationality")
-    st.pyplot(fig)
-
-# Likert Analysis
-likert_map = {
-    "Strongly Disagree": 1,
-    "Disagree": 2,
-    "Neutral": 3,
-    "Agree": 4,
-    "Strongly Agree": 5,
-    1: 1, 2: 2, 3: 3, 4: 4, 5: 5
-}
-
-likert_cols = [
-    'AI assistants help me make better shopping decisions.',
-    'AI assistants save me time in-store or online.',
-    'I trust recommendations made by AI shopping assistants.',
-    'I feel confident that my data is safe when using AI features.',
-    'I find AI shopping assistants easy to use and understand.',
-    'It doesn’t take much effort to learn how to use these assistants.',
-    'AI shopping assistants give me recommendations that match my taste.',
-    'I feel like AI shopping assistants understand what I want.',
-    'I appreciate when an AI shopping assistant speaks my language or uses familiar cultural references.',
-    'The tone and style of AI assistants in Dubai suit me.',
-    'I enjoy chatting with an AI shopping assistant.',
-    'Sometimes, AI assistants “get me” better than human staff.'
-]
-
-available_cols = [col for col in likert_cols if col in filtered_df.columns]
-
-if available_cols:
-    st.subheader("Key Drivers: Means (1=Strongly Disagree, 5=Strongly Agree)")
-    means = filtered_df[available_cols].replace(likert_map).mean()
-    st.bar_chart(means)
-else:
-    st.warning("No Likert-scale survey questions found in your data file.")
-
-# Correlation Heatmap
-if available_cols:
-    st.subheader("Correlation Heatmap of Attitudes")
-    likert_num = filtered_df[available_cols].replace(likert_map)
-    corr = likert_num.corr()
-    fig, ax = plt.subplots(figsize=(10, 7))
-    sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
-    st.pyplot(fig)
-
-# Regression Analysis
-st.subheader("Regression: What drives willingness to recommend AI shopping assistants?")
-
-rec_cols = [c for c in filtered_df.columns if "recommend" in c.lower()]
-
-if rec_cols and available_cols:
-    rec_col = rec_cols[0]
-    st.write(f"Using column: **{rec_col}**")
-
-    # Encode target
-    y = filtered_df[rec_col].map({'Yes': 1, 'No': 0, 'Maybe': 0.5})
-
-    # Prepare predictors
-    X = filtered_df[available_cols].replace(likert_map)
-
-    # Drop rows with missing values
-    data = pd.concat([y, X], axis=1).dropna()
-
-    if data.empty or data[available_cols].shape[1] == 0:
-        st.warning("Not enough clean data for regression after filtering.")
-    else:
-        y_clean = data[rec_col].astype(float)
-        X_clean = sm.add_constant(data[available_cols].astype(float))
-
-        # Debug preview
-        st.markdown("**Preview of regression dataset (first 5 rows):**")
-        st.dataframe(data.head())
-
-        try:
-            model = sm.OLS(y_clean, X_clean).fit()
-
-            st.markdown("**Statistical Summary**")
-            st.text(model.summary())
-
-            coef = model.params.drop("const").sort_values()
-            st.subheader("Top Drivers of Recommendation")
-            st.bar_chart(coef)
-
-        except Exception as e:
-            st.error(f"Regression failed: {e}")
-else:
-    st.warning("Could not find a recommendation column or Likert predictors in your uploaded file.")
-
-# Word Cloud
-st.subheader("Open-Ended Feedback (Word Cloud)")
-if 'Any ideas or suggestions for how Dubai retailers can make AI shopping assistants better for you?' in filtered_df.columns:
-    text = ' '.join(filtered_df['Any ideas or suggestions for how Dubai retailers can make AI shopping assistants better for you?'].dropna())
-    if text.strip():
-        wc = WordCloud(width=800, height=400, background_color='white').generate(text)
-        plt.figure(figsize=(10, 5))
-        plt.imshow(wc, interpolation='bilinear')
-        plt.axis('off')
-        st.pyplot(plt)
-    else:
-        st.info("No open-ended feedback available.")
-else:
-    st.info("Open-ended feedback column not found in uploaded file.")
-
-st.markdown("---")
-st.caption("Dashboard by Sanchit Singh Thapa | MBA Research | SP Jain")
+st.divider()
+st.caption("SP Jain MGB IBR — Sanchit Singh Thapa")
