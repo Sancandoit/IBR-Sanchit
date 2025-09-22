@@ -1,0 +1,46 @@
+{
+  "likert_map": {
+    "Strongly Disagree": 1,
+    "Disagree": 2,
+    "Neutral": 3,
+    "Agree": 4,
+    "Strongly Agree": 5,
+    "1": 1,
+    "2": 2,
+    "3": 3,
+    "4": 4,
+    "5": 5
+  },
+  "constructs": {
+    "Usefulness": [
+      "AI assistants help me make better shopping decisions.",
+      "AI assistants save me time in-store or online."
+    ],
+    "EaseOfUse": [
+      "I find AI shopping assistants easy to use and understand.",
+      "It doesn’t take much effort to learn how to use these assistants."
+    ],
+    "Trust": [
+      "I trust recommendations made by AI shopping assistants.",
+      "I feel confident that my data is safe when using AI features."
+    ],
+    "CulturalFit": [
+      "AI shopping assistants give me recommendations that match my taste.",
+      "I feel like AI shopping assistants understand what I want.",
+      "I appreciate when an AI shopping assistant speaks my language or uses familiar cultural references."
+    ],
+    "EmotionalConnection": [
+      "I enjoy chatting with an AI shopping assistant.",
+      "Sometimes, AI assistants “get me” better than human staff."
+    ]
+  },
+  "tech_comfort": "How comfortable are you with using new digital technology?",
+  "scenario_intent_question_prefix": "Imagine you",
+  "choice_question_prefix": "Would you rather",
+  "open_text_col": "Any ideas or suggestions for how Dubai retailers can make AI shopping assistants better for you?",
+  "demographics": {
+    "age": "How old are you?",
+    "nationality": "What best describes you?",
+    "shopping": "How do you usually shop in Dubai?"
+  }
+}
