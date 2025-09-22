@@ -132,3 +132,17 @@ def make_snapshot_zip(schema:dict, coeffs:dict, segs:dict, df_sample:pd.DataFram
         z.writestr("data/sample_anonymized.csv", df_sample.to_csv(index=False))
     buf.seek(0)
     return buf
+
+# ---- URL query param helpers (Streamlit v1.30+) ----
+def get_query_params():
+    try:
+        return st.query_params.to_dict()
+    except Exception:
+        # Fallback for older versions
+        return st.experimental_get_query_params()
+
+def set_query_params(d: dict):
+    try:
+        st.query_params.update({k: str(v) for k, v in d.items()})
+    except Exception:
+        st.experimental_set_query_params(**{k: str(v) for k, v in d.items()})
