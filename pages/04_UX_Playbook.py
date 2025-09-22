@@ -103,4 +103,3 @@ for i, item in enumerate(PLAYBOOK):
 df = pd.DataFrame(PLAYBOOK)
 csv = df[["title","target","evidence","experiment","expected"]].to_csv(index=False).encode("utf-8")
 st.download_button("Download Playbook (CSV)", data=csv, file_name="UX_Playbook.csv", type="primary")
-st.caption("Tip: add small PNG mocks from Canva to /assets and display them inside cards if you want visuals.")
