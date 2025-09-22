@@ -1,0 +1,17 @@
+{
+  "intent_ols": {
+    "intercept": 0.8,
+    "Usefulness": 0.12,
+    "EaseOfUse": 0.05,
+    "Trust": 0.28,
+    "CulturalFit": 0.24,
+    "EmotionalConnection": 0.14,
+    "TechComfort": 0.05
+  },
+  "choice_logit": {
+    "intercept": -0.5,
+    "EmotionalConnection": 0.70,
+    "EaseOfUse": 0.56,
+    "Trust": 0.50
+  }
+}
