@@ -102,16 +102,38 @@ if available_cols:
     sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
     st.pyplot(fig)
 
-# Regression
+# Regression Analysis
 st.subheader("Regression: What drives willingness to recommend AI shopping assistants?")
-if 'Would you recommend using AI-powered shopping assistants to others?' in filtered_df.columns and available_cols:
-    y = filtered_df['Would you recommend using AI-powered shopping assistants to others?'].map({'Yes': 1, 'No': 0, 'Maybe': 0.5})
+
+# Dynamically detect recommendation column
+rec_cols = [c for c in filtered_df.columns if "recommend" in c.lower()]
+available_cols = [col for col in likert_cols if col in filtered_df.columns]
+
+if rec_cols and available_cols:
+    rec_col = rec_cols[0]  # pick first matching column
+    st.write(f"Using column: **{rec_col}**")
+
+    # Encode target (Yes=1, No=0, Maybe=0.5, else NaN)
+    y = filtered_df[rec_col].map({'Yes': 1, 'No': 0, 'Maybe': 0.5})
+
+    # Prepare predictors
     X = filtered_df[available_cols].replace(likert_map)
     X = sm.add_constant(X)
+
+    # Run regression
     model = sm.OLS(y, X, missing='drop').fit()
-    st.write(model.summary())
+
+    # Show summary
+    st.markdown("**Statistical Summary**")
+    st.text(model.summary())
+
+    # Show coefficients visually
+    coef = model.params.drop("const").sort_values()
+    st.subheader("Top Drivers of Recommendation")
+    st.bar_chart(coef)
+
 else:
-    st.info("Recommendation column or Likert predictors not found in uploaded file.")
+    st.warning("Could not find a recommendation column or Likert predictors in your uploaded file. Please check column names.")
 
 # Word Cloud
 st.subheader("Open-Ended Feedback (Word Cloud)")
