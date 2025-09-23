@@ -406,3 +406,90 @@ def set_data_in_session(df: pd.DataFrame) -> None:
     if df is None or not isinstance(df, pd.DataFrame):
         return
     st.session_state["df"] = df
+
+# -----------------------------------
+# 9) Methods page helpers
+# -----------------------------------
+
+def load_schema(path: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Load a JSON/YAML schema from file, or return defaults if none provided.
+    """
+    import json, os
+    if not path:
+        return {"likert_map": DEFAULT_LIKERT_MAP, "composites": DEFAULT_COMPOSITE_SCHEMA}
+    try:
+        if path.endswith(".json"):
+            with open(path, "r") as f:
+                return json.load(f)
+        elif path.endswith((".yml", ".yaml")):
+            import yaml
+            with open(path, "r") as f:
+                return yaml.safe_load(f)
+    except Exception as e:
+        st.warning(f"Could not load schema {path}: {e}")
+    return {"likert_map": DEFAULT_LIKERT_MAP, "composites": DEFAULT_COMPOSITE_SCHEMA}
+
+
+def reliability_table(df: pd.DataFrame, schema: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+    """
+    Compute Cronbach's alpha for each composite.
+    Returns a DataFrame with alpha and item count.
+    """
+    from math import isnan
+
+    df_num = normalize_likert(df, schema)
+    comp_schema = _composite_schema(df, schema)
+    rows = []
+
+    for construct, cols in comp_schema.items():
+        if len(cols) < 2:
+            continue
+        sub = df_num[cols].apply(pd.to_numeric, errors="coerce")
+        k = sub.shape[1]
+        var_sum = sub.var(axis=0, ddof=1).sum()
+        total_var = sub.sum(axis=1).var(ddof=1)
+        alpha = (k / (k - 1)) * (1 - var_sum / total_var) if total_var > 0 else float("nan")
+        rows.append({
+            "Construct": construct,
+            "Items": k,
+            "CronbachAlpha": round(alpha, 3) if not isnan(alpha) else None
+        })
+
+    return pd.DataFrame(rows)
+
+
+def set_models_in_session(coeffs: Dict[str, Any], segments: Dict[str, Any]) -> None:
+    """
+    Store fitted model coefficients and segments into Streamlit session_state.
+    """
+    if coeffs: st.session_state["coeffs"] = coeffs
+    if segments: st.session_state["segments"] = segments
+
+
+def make_snapshot_zip(df: pd.DataFrame,
+                      coeffs: Dict[str, Any],
+                      segments: Dict[str, Any],
+                      schema: Optional[Dict[str, Any]] = None,
+                      out_path: str = "snapshot.zip") -> str:
+    """
+    Save data, coeffs, segments, and schema to a zip file for download.
+    Returns the file path.
+    """
+    import json, zipfile, io
+
+    with zipfile.ZipFile(out_path, "w") as zf:
+        # Data
+        buf = io.StringIO()
+        df.to_csv(buf, index=False)
+        zf.writestr("data.csv", buf.getvalue())
+
+        # Models
+        zf.writestr("coeffs.json", json.dumps(coeffs, indent=2))
+        zf.writestr("segments.json", json.dumps(segments, indent=2))
+
+        # Schema
+        if schema:
+            zf.writestr("schema.json", json.dumps(schema, indent=2))
+
+    return out_path
