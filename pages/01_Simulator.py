@@ -18,7 +18,7 @@ segments_data = (segs_sess or load_segments())["segments"]
 # ---- Baseline from uploaded data (construct means) or defaults ----
 df = get_data_from_session()
 if df is not None and len(df) > 0:
-    comp = compute_composites(df, schema := None)  # schema loaded inside util
+    comp = compute_composites(df)
     baseline_means = comp.mean(numeric_only=True).to_dict() if comp is not None and not comp.empty else {}
 else:
     baseline_means = {}
