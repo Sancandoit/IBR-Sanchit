@@ -4,14 +4,13 @@ from pathlib import Path
 from utils import _read_any, set_data_in_session, get_data_from_session
 
 st.set_page_config(page_title="Dubai AI Shopping Assistant | IBR", page_icon="🛍️", layout="wide")
+st.caption("Upload Excel/CSV or use the demo sample. Data is not stored on the server; models can be recomputed in-session for rigor.")
 
 # Load and show SP Jain logo
 logo = Image.open("assets/SP_Jain_Logo.jpg")
 st.image(logo, width=220)  # adjust width as needed
 st.title("Dubai Retail, Next")
 st.subheader("AI-Personalized Shopping Assistants and Consumer Engagement")
-
-st.caption("Upload Excel/CSV or use the demo sample. Data is not stored on the server; models can be recomputed in-session for rigor.")
 
 # --- Upload / Demo ---
 c1, c2 = st.columns([2,1])
