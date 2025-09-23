@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 from utils import _read_any, set_data_in_session, get_data_from_session
+from PIL import Image
 
 st.set_page_config(page_title="Dubai AI Shopping Assistant | IBR", page_icon="🛍️", layout="wide")
 st.caption("Upload Excel/CSV or use the demo sample. Data is not stored on the server; models can be recomputed in-session for rigor.")
