@@ -354,15 +354,26 @@ def set_models_in_session(coeffs: Dict[str, Any], segments: Dict[str, Any]) -> N
     if coeffs: st.session_state["coeffs"] = coeffs
     if segments: st.session_state["segments"] = segments
 
-def make_snapshot_zip(df: pd.DataFrame,
+def make_snapshot_zip(schema: Dict[str, Any],
                       coeffs: Dict[str, Any],
                       segments: Dict[str, Any],
-                      schema: Optional[Dict[str, Any]] = None,
+                      df: pd.DataFrame,
                       out_path: str = "snapshot.zip") -> str:
+    """
+    Save schema, coeffs, segments, and sample data to a zip file for download.
+    """
     with zipfile.ZipFile(out_path, "w") as zf:
-        buf = io.StringIO(); df.to_csv(buf, index=False)
+        # Data
+        buf = io.StringIO()
+        df.to_csv(buf, index=False)
         zf.writestr("data.csv", buf.getvalue())
+
+        # Models
         zf.writestr("coeffs.json", json.dumps(coeffs, indent=2))
         zf.writestr("segments.json", json.dumps(segments, indent=2))
-        if schema: zf.writestr("schema.json", json.dumps(schema, indent=2))
+
+        # Schema
+        if schema:
+            zf.writestr("schema.json", json.dumps(schema, indent=2))
+
     return out_path
