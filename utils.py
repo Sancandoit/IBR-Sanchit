@@ -66,7 +66,7 @@ DEFAULT_COMPOSITE_SCHEMA: Dict[str, List[str]] = {
 DEFAULT_DEMOGRAPHICS: Dict[str, str] = {
     "age": "How old are you?",
     "nationality": "What best describes you?",
-    "shopping_style": "How do you usually shop in Dubai?",
+    "shopping": "How do you usually shop in Dubai?",   # was 'shopping_style'
     "tech_comfort": "How comfortable are you with using new digital technology?"
 }
 
