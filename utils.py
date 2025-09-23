@@ -421,12 +421,12 @@ def load_schema(path: Optional[str] = None) -> Dict[str, Any]:
             "likert_map": DEFAULT_LIKERT_MAP,
             "composites": DEFAULT_COMPOSITE_SCHEMA,
             "demographics": {
-                "age": "How old are you?",
-                "ethnicity": "What best describes you?",
-                "shopping_style": "How do you usually shop in Dubai?",
-                "tech_comfort": "How comfortable are you with using new digital technology?"
-            }
-        }
+    "age": "How old are you?",
+    "nationality": "What best describes you?",
+    "shopping_style": "How do you usually shop in Dubai?",
+    "tech_comfort": "How comfortable are you with using new digital technology?"
+}
+
     try:
         if path.endswith(".json"):
             with open(path, "r") as f:
