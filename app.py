@@ -5,6 +5,9 @@ from utils import _read_any, set_data_in_session, get_data_from_session
 
 st.set_page_config(page_title="Dubai AI Shopping Assistant | IBR", page_icon="🛍️", layout="wide")
 
+# Load and show SP Jain logo
+logo = Image.open("assets/SP_Jain_Logo.jpg")
+st.image(logo, width=220)  # adjust width as needed
 st.title("Dubai Retail, Next")
 st.subheader("AI-Personalized Shopping Assistants and Consumer Engagement")
 
