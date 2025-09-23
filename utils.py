@@ -358,3 +358,42 @@ def composites_from_df_means(df: Optional[pd.DataFrame], schema: Optional[Dict[s
         return out
     except Exception:
         return defaults
+
+# -----------------------------------
+# 8) Backward-compat shims (for app.py)
+# -----------------------------------
+
+def _read_any(file) -> pd.DataFrame:
+    """
+    Read an uploaded file (CSV or Excel) into a DataFrame.
+    Used in app.py for file uploads.
+    """
+    import os
+    if file is None:
+        return pd.DataFrame()
+    name = getattr(file, "name", None) or str(file)
+    try:
+        if name.endswith(".csv"):
+            return pd.read_csv(file)
+        elif name.endswith((".xls", ".xlsx")):
+            return pd.read_excel(file)
+        else:
+            # try extension guess from path
+            ext = os.path.splitext(name)[1].lower()
+            if ext == ".csv":
+                return pd.read_csv(file)
+            elif ext in (".xls", ".xlsx"):
+                return pd.read_excel(file)
+    except Exception as e:
+        st.error(f"Could not read file {name}: {e}")
+        return pd.DataFrame()
+    return pd.DataFrame()
+
+
+def set_data_in_session(df: pd.DataFrame) -> None:
+    """
+    Store a DataFrame in Streamlit session_state under key 'df'.
+    """
+    if df is None or not isinstance(df, pd.DataFrame):
+        return
+    st.session_state["df"] = df
