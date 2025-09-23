@@ -292,21 +292,53 @@ def composites_from_df_means(df: Optional[pd.DataFrame], schema: Optional[Dict[s
 # 8) Methods page helpers
 # -----------------------------------
 def load_schema(path: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Load schema (JSON/YAML) or return safe defaults.
+    Ensures demographic keys are available both nested and at the root.
+    """
     if not path:
-        return {"likert_map": DEFAULT_LIKERT_MAP,
-                "composites": DEFAULT_COMPOSITE_SCHEMA,
-                "demographics": DEFAULT_DEMOGRAPHICS}
+        return {
+            "likert_map": DEFAULT_LIKERT_MAP,
+            "composites": DEFAULT_COMPOSITE_SCHEMA,
+            "demographics": DEFAULT_DEMOGRAPHICS,
+            # root-level aliases for backward compatibility with Classic Dashboard
+            "age": DEFAULT_DEMOGRAPHICS["age"],
+            "nationality": DEFAULT_DEMOGRAPHICS["nationality"],
+            "shopping": DEFAULT_DEMOGRAPHICS["shopping"],
+            "tech_comfort": DEFAULT_DEMOGRAPHICS["tech_comfort"]
+        }
+
     try:
         if path.endswith(".json"):
-            with open(path, "r") as f: return json.load(f)
+            with open(path, "r") as f:
+                schema = json.load(f)
         elif path.endswith((".yml", ".yaml")):
             import yaml
-            with open(path, "r") as f: return yaml.safe_load(f)
+            with open(path, "r") as f:
+                schema = yaml.safe_load(f)
+        else:
+            return {
+                "likert_map": DEFAULT_LIKERT_MAP,
+                "composites": DEFAULT_COMPOSITE_SCHEMA,
+                "demographics": DEFAULT_DEMOGRAPHICS,
+                "age": DEFAULT_DEMOGRAPHICS["age"],
+                "nationality": DEFAULT_DEMOGRAPHICS["nationality"],
+                "shopping": DEFAULT_DEMOGRAPHICS["shopping"],
+                "tech_comfort": DEFAULT_DEMOGRAPHICS["tech_comfort"]
+            }
     except Exception as e:
         st.warning(f"Could not load schema {path}: {e}")
-    return {"likert_map": DEFAULT_LIKERT_MAP,
-            "composites": DEFAULT_COMPOSITE_SCHEMA,
-            "demographics": DEFAULT_DEMOGRAPHICS}
+        schema = {}
+
+    # Fallback / merge defaults
+    schema.setdefault("likert_map", DEFAULT_LIKERT_MAP)
+    schema.setdefault("composites", DEFAULT_COMPOSITE_SCHEMA)
+    schema.setdefault("demographics", DEFAULT_DEMOGRAPHICS)
+    # ensure root-level keys exist
+    for k, v in DEFAULT_DEMOGRAPHICS.items():
+        schema.setdefault(k, v)
+
+    return schema
 
 def reliability_table(df: pd.DataFrame, schema: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
     from math import isnan
