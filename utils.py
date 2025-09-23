@@ -136,18 +136,27 @@ def normalize_likert(df: pd.DataFrame, schema: Optional[Dict[str, Any]] = None) 
 def compute_composites(df: pd.DataFrame, schema: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
     """
     Return a DataFrame with composite scores for each construct.
-    If a construct has no matching columns, it returns NaNs (handled upstream).
+    If a construct has no matching columns, it returns NaNs.
+    Handles both single-column and multi-column composites safely.
     """
     df_num = normalize_likert(df, schema)
     comp_schema = _composite_schema(df, schema)
     out: Dict[str, pd.Series] = {}
-    for construct, cols in comp_schema.items():
-        if cols:
-            out[construct] = pd.to_numeric(df_num[cols], errors="coerce").mean(axis=1)
-        else:
-            out[construct] = pd.Series([pd.NA] * len(df_num), index=df_num.index)
-    return pd.DataFrame(out)
 
+    for construct, cols in comp_schema.items():
+        if not cols:  # no matching columns
+            out[construct] = pd.Series([pd.NA] * len(df_num), index=df_num.index)
+            continue
+
+        if len(cols) == 1:
+            # Single column → just coerce that Series
+            out[construct] = pd.to_numeric(df_num[cols[0]], errors="coerce")
+        else:
+            # Multiple columns → coerce all to numeric and average row-wise
+            sub = df_num[cols].apply(pd.to_numeric, errors="coerce")
+            out[construct] = sub.mean(axis=1)
+
+    return pd.DataFrame(out)
 
 # ---------------------------------------
 # 3) Coefficients / segments: load & save
