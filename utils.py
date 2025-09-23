@@ -417,7 +417,16 @@ def load_schema(path: Optional[str] = None) -> Dict[str, Any]:
     """
     import json, os
     if not path:
-        return {"likert_map": DEFAULT_LIKERT_MAP, "composites": DEFAULT_COMPOSITE_SCHEMA}
+        return {
+            "likert_map": DEFAULT_LIKERT_MAP,
+            "composites": DEFAULT_COMPOSITE_SCHEMA,
+            "demographics": {
+                "age": "How old are you?",
+                "ethnicity": "What best describes you?",
+                "shopping_style": "How do you usually shop in Dubai?",
+                "tech_comfort": "How comfortable are you with using new digital technology?"
+            }
+        }
     try:
         if path.endswith(".json"):
             with open(path, "r") as f:
@@ -428,7 +437,16 @@ def load_schema(path: Optional[str] = None) -> Dict[str, Any]:
                 return yaml.safe_load(f)
     except Exception as e:
         st.warning(f"Could not load schema {path}: {e}")
-    return {"likert_map": DEFAULT_LIKERT_MAP, "composites": DEFAULT_COMPOSITE_SCHEMA}
+    return {
+        "likert_map": DEFAULT_LIKERT_MAP,
+        "composites": DEFAULT_COMPOSITE_SCHEMA,
+        "demographics": {
+            "age": "How old are you?",
+            "ethnicity": "What best describes you?",
+            "shopping_style": "How do you usually shop in Dubai?",
+            "tech_comfort": "How comfortable are you with using new digital technology?"
+        }
+    }
 
 
 def reliability_table(df: pd.DataFrame, schema: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
