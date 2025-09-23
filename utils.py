@@ -294,14 +294,15 @@ def composites_from_df_means(df: Optional[pd.DataFrame], schema: Optional[Dict[s
 def load_schema(path: Optional[str] = None) -> Dict[str, Any]:
     """
     Load schema (JSON/YAML) or return safe defaults.
-    Ensures demographic keys are available both nested and at the root.
+    Ensures demographic keys and constructs are available both nested and at the root.
     """
     if not path:
         return {
             "likert_map": DEFAULT_LIKERT_MAP,
             "composites": DEFAULT_COMPOSITE_SCHEMA,
+            "constructs": DEFAULT_COMPOSITE_SCHEMA,  # alias for Classic Dashboard
             "demographics": DEFAULT_DEMOGRAPHICS,
-            # root-level aliases for backward compatibility with Classic Dashboard
+            # root-level aliases for backward compatibility
             "age": DEFAULT_DEMOGRAPHICS["age"],
             "nationality": DEFAULT_DEMOGRAPHICS["nationality"],
             "shopping": DEFAULT_DEMOGRAPHICS["shopping"],
@@ -317,15 +318,7 @@ def load_schema(path: Optional[str] = None) -> Dict[str, Any]:
             with open(path, "r") as f:
                 schema = yaml.safe_load(f)
         else:
-            return {
-                "likert_map": DEFAULT_LIKERT_MAP,
-                "composites": DEFAULT_COMPOSITE_SCHEMA,
-                "demographics": DEFAULT_DEMOGRAPHICS,
-                "age": DEFAULT_DEMOGRAPHICS["age"],
-                "nationality": DEFAULT_DEMOGRAPHICS["nationality"],
-                "shopping": DEFAULT_DEMOGRAPHICS["shopping"],
-                "tech_comfort": DEFAULT_DEMOGRAPHICS["tech_comfort"]
-            }
+            schema = {}
     except Exception as e:
         st.warning(f"Could not load schema {path}: {e}")
         schema = {}
@@ -333,6 +326,7 @@ def load_schema(path: Optional[str] = None) -> Dict[str, Any]:
     # Fallback / merge defaults
     schema.setdefault("likert_map", DEFAULT_LIKERT_MAP)
     schema.setdefault("composites", DEFAULT_COMPOSITE_SCHEMA)
+    schema.setdefault("constructs", schema.get("composites", DEFAULT_COMPOSITE_SCHEMA))
     schema.setdefault("demographics", DEFAULT_DEMOGRAPHICS)
     # ensure root-level keys exist
     for k, v in DEFAULT_DEMOGRAPHICS.items():
