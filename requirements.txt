@@ -7,3 +7,6 @@ scikit-learn
 pingouin
 mlxtend
 matplotlib
+seaborn
+wordcloud
+openpyxl
