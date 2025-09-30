@@ -228,21 +228,39 @@ def set_data_in_session(df: pd.DataFrame) -> None:
 # -----------------------
 # 5) Prediction functions
 # -----------------------
-def _linear_predict(x: Dict[str, float], w: Dict[str, float]) -> float:
-    y = w.get("intercept", 0.0)
-    for k, v in x.items():
-        if k in w:
-            y += float(w[k]) * float(v)
+def _linear_predict(constructs: dict, weights: dict):
+    """
+    Simple linear prediction: y = intercept + sum(coeff_i * x_i)
+    """
+    # Ensure weights is a dictionary
+    if not isinstance(weights, dict):
+        return 0.0
+
+    # Start with intercept
+    y = weights.get("intercept", 0.0)
+
+    # Add contribution from each construct
+    for k, v in constructs.items():
+        coef = weights.get(k, 0.0)
+        try:
+            y += coef * float(v)
+        except Exception:
+            continue
     return y
+
+
+def predict_intent(constructs: dict, coeffs: dict):
+    """
+    Wrapper to predict intent score from constructs and regression coefficients.
+    """
+    if not coeffs or not isinstance(coeffs, dict):
+        return 0.0
+    return _linear_predict(constructs, coeffs)
+
 
 def _sigmoid(z: float) -> float:
     try: return 1.0 / (1.0 + math.exp(-z))
     except OverflowError: return 0.0 if z < 0 else 1.0
-
-def predict_intent(constructs: Dict[str, float], coeffs: Dict[str, Any]) -> float:
-    w = (coeffs.get("intent") if coeffs else None) or load_coeffs().get("intent")
-    score = _linear_predict(constructs, w)
-    return max(1.0, min(5.0, float(score)))
 
 def predict_choice_probability(constructs: Dict[str, float], coeffs: Dict[str, Any]) -> float:
     w = (coeffs.get("choice") if coeffs else None) or load_coeffs().get("choice")
