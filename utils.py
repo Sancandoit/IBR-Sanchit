@@ -232,19 +232,15 @@ def _linear_predict(constructs: dict, weights: dict):
     """
     Simple linear prediction: y = intercept + sum(coeff_i * x_i)
     """
-    # Ensure weights is a dictionary
-    if not isinstance(weights, dict):
+    if not isinstance(weights, dict) or not weights:
         return 0.0
 
-    # Start with intercept
     y = weights.get("intercept", 0.0)
-
-    # Add contribution from each construct
     for k, v in constructs.items():
         coef = weights.get(k, 0.0)
         try:
             y += coef * float(v)
-        except Exception:
+        except (ValueError, TypeError):
             continue
     return y
 
@@ -255,8 +251,10 @@ def predict_intent(constructs: dict, coeffs: dict):
     """
     if not coeffs or not isinstance(coeffs, dict):
         return 0.0
-    return _linear_predict(constructs, coeffs)
 
+    # Use willingness coefficients
+    w = coeffs.get("willingness", coeffs)  # fallback if dict is flat
+    return _linear_predict(constructs, w)
 
 def _sigmoid(z: float) -> float:
     try: return 1.0 / (1.0 + math.exp(-z))
