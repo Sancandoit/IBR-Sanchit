@@ -9,7 +9,7 @@ import pandas as pd
 # Optional: Streamlit access
 try:
     import streamlit as st
-except Exception:  # stub if not in Streamlit context
+except Exception:  # fallback stub for non-Streamlit context
     class _Stub:
         session_state = {}
         def warning(self, *a, **k): print("Warning:", a, k)
@@ -136,14 +136,22 @@ def compute_composites(df: pd.DataFrame, schema: Optional[Dict[str, Any]] = None
 # 3) Coefficients / segments: load & save
 # ---------------------------------------
 def get_models_from_session():
-    coeffs = st.session_state.get("coeffs")
-    segs = st.session_state.get("segments")
-    return coeffs or None, segs or None
+    """
+    Safely retrieve coefficients and segments from session state.
+    """
+    coeffs = st.session_state.get("coeffs", None)
+    segs = st.session_state.get("segments", None)
+    return coeffs, segs
 
 def load_coeffs() -> Dict[str, Any]:
+    """
+    Load coefficients either from session or fall back to defaults.
+    """
     coeffs_sess, _ = get_models_from_session()
-    if coeffs_sess:
+    if isinstance(coeffs_sess, dict) and coeffs_sess:
         return coeffs_sess
+
+    # Fallback defaults
     return {
         "intent": {
             "intercept": 1.00,
@@ -171,7 +179,7 @@ def load_coeffs() -> Dict[str, Any]:
 
 def load_segments() -> Dict[str, Any]:
     _, segs_sess = get_models_from_session()
-    if segs_sess:
+    if isinstance(segs_sess, dict) and segs_sess:
         return segs_sess
     return {
         "segments": [
@@ -187,6 +195,37 @@ def load_segments() -> Dict[str, Any]:
         ],
         "meta": {"type": "presets", "notes": "Replace with LCA means if available."}
     }
+
+# --------------------------------------
+# 4) Session data access (uploaded file)
+# --------------------------------------
+def get_data_from_session() -> Optional[pd.DataFrame]:
+    df = st.session_state.get("df")
+    try:
+        if isinstance(df, pd.DataFrame) and len(df) > 0:
+            return df
+    except Exception:
+        pass
+    return None
+
+def _read_any(file) -> pd.DataFrame:
+    if file is None:
+        return pd.DataFrame()
+    name = getattr(file, "name", None) or str(file)
+    try:
+        if name.endswith(".csv"):
+            return pd.read_csv(file)
+        elif name.endswith((".xls", ".xlsx")):
+            return pd.read_excel(file)
+    except Exception as e:
+        st.error(f"Could not read file {name}: {e}")
+        return pd.DataFrame()
+    return pd.DataFrame()
+
+def set_data_in_session(df: pd.DataFrame) -> None:
+    if df is None or not isinstance(df, pd.DataFrame):
+        return
+    st.session_state["df"] = df
 
 # -----------------------
 # 5) Prediction functions
@@ -206,7 +245,7 @@ def _linear_predict(constructs: dict, weights: dict):
 def predict_intent(constructs: dict, coeffs: dict):
     if not coeffs or not isinstance(coeffs, dict):
         coeffs = load_coeffs()
-    w = coeffs.get("intent", coeffs)  # FIXED: use 'intent' not 'willingness'
+    w = coeffs.get("intent", coeffs)
     return _linear_predict(constructs, w)
 
 def _sigmoid(z: float) -> float:
@@ -222,4 +261,112 @@ def predict_choice_probability(constructs: Dict[str, float], coeffs: Dict[str, A
     z = _linear_predict(constructs, w)
     return float(_sigmoid(z))
 
-# (rest of your helper functions stay as they are: get_data_from_session, load_schema, etc.)
+# -----------------------------------
+# 6) URL query param helpers
+# -----------------------------------
+def get_query_params() -> Dict[str, List[str]]:
+    try:
+        return st.query_params.to_dict()  # type: ignore
+    except Exception:
+        try:
+            return st.experimental_get_query_params()
+        except Exception:
+            return {}
+
+def set_query_params(d: Dict[str, Any]) -> None:
+    payload = {k: str(v) for k, v in d.items()}
+    try:
+        st.query_params.update(payload)  # type: ignore
+    except Exception:
+        try: st.experimental_set_query_params(**payload)
+        except Exception: pass
+
+# -----------------------------------
+# 7) Convenience: baseline composites
+# -----------------------------------
+def composites_from_df_means(df: Optional[pd.DataFrame], schema: Optional[Dict[str, Any]] = None) -> Dict[str, float]:
+    defaults = {"Usefulness": 3.5, "EaseOfUse": 3.5, "Trust": 3.2,
+                "CulturalFit": 3.4, "EmotionalConnection": 3.2, "TechComfort": 4.0}
+    if df is None or len(df) == 0: return defaults
+    try:
+        comp = compute_composites(df, schema)
+        if comp is None or comp.empty: return defaults
+        means = comp.mean(numeric_only=True).to_dict()
+        out = {}
+        for k, v in defaults.items():
+            val = means.get(k, float('nan'))
+            try: out[k] = float(round(val, 2)) if pd.notna(val) else v
+            except Exception: out[k] = v
+        return out
+    except Exception: return defaults
+
+# -----------------------------------
+# 8) Methods page helpers
+# -----------------------------------
+def load_schema(path: Optional[str] = None) -> Dict[str, Any]:
+    if not path:
+        return {
+            "likert_map": DEFAULT_LIKERT_MAP,
+            "composites": DEFAULT_COMPOSITE_SCHEMA,
+            "constructs": DEFAULT_COMPOSITE_SCHEMA,
+            "demographics": DEFAULT_DEMOGRAPHICS,
+            "age": DEFAULT_DEMOGRAPHICS["age"],
+            "nationality": DEFAULT_DEMOGRAPHICS["nationality"],
+            "shopping": DEFAULT_DEMOGRAPHICS["shopping"],
+            "tech_comfort": DEFAULT_DEMOGRAPHICS["tech_comfort"]
+        }
+    try:
+        if path.endswith(".json"):
+            with open(path, "r") as f:
+                schema = json.load(f)
+        elif path.endswith((".yml", ".yaml")):
+            import yaml
+            with open(path, "r") as f:
+                schema = yaml.safe_load(f)
+        else:
+            schema = {}
+    except Exception as e:
+        st.warning(f"Could not load schema {path}: {e}")
+        schema = {}
+    schema.setdefault("likert_map", DEFAULT_LIKERT_MAP)
+    schema.setdefault("composites", DEFAULT_COMPOSITE_SCHEMA)
+    schema.setdefault("constructs", schema.get("composites", DEFAULT_COMPOSITE_SCHEMA))
+    schema.setdefault("demographics", DEFAULT_DEMOGRAPHICS)
+    for k, v in DEFAULT_DEMOGRAPHICS.items():
+        schema.setdefault(k, v)
+    return schema
+
+def reliability_table(df: pd.DataFrame, schema: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+    from math import isnan
+    df_num = normalize_likert(df, schema)
+    comp_schema = _composite_schema(df, schema)
+    rows = []
+    for construct, cols in comp_schema.items():
+        if len(cols) < 2: continue
+        sub = df_num[cols].apply(pd.to_numeric, errors="coerce")
+        k = sub.shape[1]
+        var_sum = sub.var(axis=0, ddof=1).sum()
+        total_var = sub.sum(axis=1).var(ddof=1)
+        alpha = (k / (k - 1)) * (1 - var_sum / total_var) if total_var > 0 else float("nan")
+        rows.append({"Construct": construct, "Items": k,
+                     "CronbachAlpha": round(alpha, 3) if not isnan(alpha) else None})
+    return pd.DataFrame(rows)
+
+def set_models_in_session(coeffs: Dict[str, Any], segments: Dict[str, Any]) -> None:
+    if coeffs: st.session_state["coeffs"] = coeffs
+    if segments: st.session_state["segments"] = segments
+
+def make_snapshot_zip(schema: Dict[str, Any],
+                      coeffs: Dict[str, Any],
+                      segments: Dict[str, Any],
+                      df: pd.DataFrame,
+                      out_path: str = "snapshot.zip") -> str:
+    with zipfile.ZipFile(out_path, "w") as zf:
+        buf = io.StringIO()
+        df.to_csv(buf, index=False)
+        zf.writestr("data.csv", buf.getvalue())
+        zf.writestr("coeffs.json", json.dumps(coeffs, indent=2))
+        zf.writestr("segments.json", json.dumps(segments, indent=2))
+        if schema:
+            zf.writestr("schema.json", json.dumps(schema, indent=2))
+    return out_path
