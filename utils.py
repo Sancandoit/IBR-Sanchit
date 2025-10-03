@@ -208,10 +208,19 @@ def get_data_from_session() -> Optional[pd.DataFrame]:
         pass
     return None
 
+# --------------------------------------
+# File Reading Utility (safe)
+# --------------------------------------
 def _read_any(file) -> pd.DataFrame:
+    """
+    Read a file (CSV/XLSX) safely into a DataFrame.
+    Used by app.py for uploading survey responses.
+    """
     if file is None:
         return pd.DataFrame()
+
     name = getattr(file, "name", None) or str(file)
+
     try:
         if name.endswith(".csv"):
             return pd.read_csv(file)
@@ -220,6 +229,7 @@ def _read_any(file) -> pd.DataFrame:
     except Exception as e:
         st.error(f"Could not read file {name}: {e}")
         return pd.DataFrame()
+
     return pd.DataFrame()
 
 def set_data_in_session(df: pd.DataFrame) -> None:
